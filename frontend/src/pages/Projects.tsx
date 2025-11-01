@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { FiPlus, FiFolder } from 'react-icons/fi'
+import { FiPlus, FiFolder, FiEdit2, FiTrash2, FiMoreVertical } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import api from '../lib/api'
@@ -9,6 +9,9 @@ import { Project } from '../types'
 const Projects = () => {
   const queryClient = useQueryClient()
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [showMenu, setShowMenu] = useState<string | null>(null)
   const [newProject, setNewProject] = useState({
     name: '',
     description: '',
@@ -39,9 +42,69 @@ const Projects = () => {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof newProject }) => {
+      await api.put(`/projects/${id}`, data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      setIsModalOpen(false)
+      setIsEditMode(false)
+      setEditingProject(null)
+      setNewProject({ name: '', description: '', color: '#0ea5e9' })
+      toast.success('Project updated successfully!')
+    },
+    onError: () => {
+      toast.error('Failed to update project')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/projects/${id}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      toast.success('Project deleted successfully!')
+    },
+    onError: () => {
+      toast.error('Failed to delete project')
+    },
+  })
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    createMutation.mutate(newProject)
+    if (isEditMode && editingProject) {
+      updateMutation.mutate({ id: editingProject.id, data: newProject })
+    } else {
+      createMutation.mutate(newProject)
+    }
+  }
+
+  const handleEdit = (project: Project) => {
+    setEditingProject(project)
+    setNewProject({
+      name: project.name,
+      description: project.description || '',
+      color: project.color,
+    })
+    setIsEditMode(true)
+    setIsModalOpen(true)
+    setShowMenu(null)
+  }
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+      deleteMutation.mutate(id)
+    }
+    setShowMenu(null)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setIsEditMode(false)
+    setEditingProject(null)
+    setNewProject({ name: '', description: '', color: '#0ea5e9' })
   }
 
   if (isLoading) {
@@ -65,12 +128,8 @@ const Projects = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects?.map((project) => (
-          <Link
-            key={project.id}
-            to={`/projects/${project.id}`}
-            className="card hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start gap-3">
+          <div key={project.id} className="card hover:shadow-md transition-shadow relative">
+            <Link to={`/projects/${project.id}`} className="flex items-start gap-3">
               <div
                 className="w-12 h-12 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: project.color }}
@@ -81,8 +140,46 @@ const Projects = () => {
                 <h3 className="font-semibold text-gray-900">{project.name}</h3>
                 <p className="text-sm text-gray-600 mt-1">{project.description}</p>
               </div>
+            </Link>
+            
+            {/* Action Menu */}
+            <div className="absolute top-4 right-4">
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  setShowMenu(showMenu === project.id ? null : project.id)
+                }}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <FiMoreVertical className="w-5 h-5 text-gray-600" />
+              </button>
+              
+              {showMenu === project.id && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleEdit(project)
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <FiEdit2 className="w-4 h-4" />
+                    Edit Project
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleDelete(project.id)
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <FiTrash2 className="w-4 h-4" />
+                    Delete Project
+                  </button>
+                </div>
+              )}
             </div>
-          </Link>
+          </div>
         ))}
       </div>
 
@@ -101,7 +198,9 @@ const Projects = () => {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Create New Project</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              {isEditMode ? 'Edit Project' : 'Create New Project'}
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
@@ -135,11 +234,11 @@ const Projects = () => {
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="submit" className="btn btn-primary flex-1">
-                  Create Project
+                  {isEditMode ? 'Update Project' : 'Create Project'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleCloseModal}
                   className="btn btn-secondary flex-1"
                 >
                   Cancel
