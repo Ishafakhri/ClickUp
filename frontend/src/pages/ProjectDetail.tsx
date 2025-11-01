@@ -9,12 +9,11 @@ import {
   FiClock,
   FiZap,
   FiRefreshCw,
-  FiUsers,
 } from 'react-icons/fi'
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react'
 import { toast } from 'react-hot-toast'
 import api from '../lib/api'
-import { Project, Task, TaskStatus, TaskPriority } from '../types'
+import { Project, Task, TaskStatus, TaskPriority, ProjectMember } from '../types'
 import ProjectMembers from '../components/ProjectMembers'
 import { useAuthStore } from '../stores/authStore'
 
@@ -248,6 +247,32 @@ const ProjectDetail = () => {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex gap-6">
+          <button
+            onClick={() => setActiveTab('tasks')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'tasks'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Tasks
+          </button>
+          <button
+            onClick={() => setActiveTab('members')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'members'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Team
+          </button>
+        </nav>
+      </div>
+
       {/* Tab Content */}
       {activeTab === 'tasks' ? (
         <>
@@ -347,9 +372,11 @@ const ProjectDetail = () => {
         <ProjectMembers
           projectId={id!}
           members={project.members || []}
-          isOwner={project.owner.id === user?.id}
+          isOwner={project.owner?.id === user?.id || project.ownerId === user?.id}
           isAdmin={
-            project.members?.some((m) => m.userId === user?.id && m.role === 'ADMIN') || false
+            project.members?.some(
+              (m: ProjectMember) => m.userId === user?.id && m.role === 'ADMIN'
+            ) || false
           }
           onMembersUpdate={() => queryClient.invalidateQueries({ queryKey: ['project', id] })}
         />

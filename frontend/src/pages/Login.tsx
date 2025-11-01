@@ -23,8 +23,10 @@ const Login = () => {
       setAuth(data.user, data.token)
       toast.success('Welcome back!')
       navigate('/dashboard')
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Login failed')
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const message = (error as any).response?.data?.message || 'Login failed'
+      toast.error(message)
     } finally {
       setIsLoading(false)
     }

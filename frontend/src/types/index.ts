@@ -2,7 +2,16 @@ export interface User {
   id: string
   email: string
   name: string
-  avatar?: string
+  avatar?: string | null
+  createdAt: string
+}
+
+export interface ProjectMember {
+  id: string
+  projectId: string
+  userId: string
+  role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
+  user?: User
   createdAt: string
 }
 
@@ -12,6 +21,8 @@ export interface Project {
   description?: string
   color: string
   ownerId: string
+  owner?: User
+  members?: ProjectMember[]
   createdAt: string
   updatedAt: string
 }

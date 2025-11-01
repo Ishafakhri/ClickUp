@@ -5,13 +5,16 @@ import { User, UserPlus, X, Shield, Eye, Crown } from 'lucide-react'
 
 interface Member {
   id: string
+  projectId: string
+  userId: string
   role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER'
-  user: {
+  user?: {
     id: string
     name: string
     email: string
-    avatar: string | null
+    avatar?: string | null
   }
+  createdAt: string
 }
 
 interface ProjectMembersProps {
@@ -45,8 +48,10 @@ const ProjectMembers = ({
       setRole('MEMBER')
       setShowAddMember(false)
       onMembersUpdate()
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to add member')
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const message = (error as any).response?.data?.message || 'Failed to add member'
+      toast.error(message)
     } finally {
       setIsLoading(false)
     }
@@ -59,8 +64,10 @@ const ProjectMembers = ({
       await api.delete(`/projects/${projectId}/members/${userId}`)
       toast.success('Member removed successfully!')
       onMembersUpdate()
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to remove member')
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const message = (error as any).response?.data?.message || 'Failed to remove member'
+      toast.error(message)
     }
   }
 
@@ -69,8 +76,10 @@ const ProjectMembers = ({
       await api.patch(`/projects/${projectId}/members/${userId}`, { role: newRole })
       toast.success('Member role updated!')
       onMembersUpdate()
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to update role')
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const message = (error as any).response?.data?.message || 'Failed to update role'
+      toast.error(message)
     }
   }
 
@@ -132,7 +141,7 @@ const ProjectMembers = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as any)}
+                onChange={(e) => setRole(e.target.value as 'ADMIN' | 'MEMBER' | 'VIEWER')}
                 className="input"
               >
                 <option value="MEMBER">Member</option>
@@ -157,63 +166,67 @@ const ProjectMembers = ({
       )}
 
       <div className="space-y-3">
-        {members.map((member) => (
-          <div
-            key={member.id}
-            className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              {member.user.avatar ? (
-                <img
-                  src={member.user.avatar}
-                  alt={member.user.name}
-                  className="w-10 h-10 rounded-full"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-medium">
-                  {member.user.name.charAt(0).toUpperCase()}
+        {members.map((member) => {
+          if (!member.user) return null
+
+          return (
+            <div
+              key={member.id}
+              className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {member.user.avatar ? (
+                  <img
+                    src={member.user.avatar}
+                    alt={member.user.name}
+                    className="w-10 h-10 rounded-full"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center text-white font-medium">
+                    {member.user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="font-medium text-gray-900">{member.user.name}</p>
+                  <p className="text-sm text-gray-500">{member.user.email}</p>
                 </div>
-              )}
-              <div>
-                <p className="font-medium text-gray-900">{member.user.name}</p>
-                <p className="text-sm text-gray-500">{member.user.email}</p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {canManageMembers && member.role !== 'OWNER' ? (
+                  <select
+                    value={member.role}
+                    onChange={(e) => handleUpdateRole(member.user!.id, e.target.value)}
+                    className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="MEMBER">Member</option>
+                    <option value="ADMIN">Admin</option>
+                    <option value="VIEWER">Viewer</option>
+                  </select>
+                ) : (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${getRoleBadge(
+                      member.role
+                    )}`}
+                  >
+                    {getRoleIcon(member.role)}
+                    {member.role}
+                  </span>
+                )}
+
+                {canManageMembers && member.role !== 'OWNER' && (
+                  <button
+                    onClick={() => handleRemoveMember(member.user!.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Remove member"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              {canManageMembers && member.role !== 'OWNER' ? (
-                <select
-                  value={member.role}
-                  onChange={(e) => handleUpdateRole(member.user.id, e.target.value)}
-                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                >
-                  <option value="MEMBER">Member</option>
-                  <option value="ADMIN">Admin</option>
-                  <option value="VIEWER">Viewer</option>
-                </select>
-              ) : (
-                <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${getRoleBadge(
-                    member.role
-                  )}`}
-                >
-                  {getRoleIcon(member.role)}
-                  {member.role}
-                </span>
-              )}
-
-              {canManageMembers && member.role !== 'OWNER' && (
-                <button
-                  onClick={() => handleRemoveMember(member.user.id)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Remove member"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

@@ -24,8 +24,10 @@ const Register = () => {
       setAuth(data.user, data.token)
       toast.success('Account created successfully!')
       navigate('/dashboard')
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Registration failed')
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const message = (error as any).response?.data?.message || 'Registration failed'
+      toast.error(message)
     } finally {
       setIsLoading(false)
     }
